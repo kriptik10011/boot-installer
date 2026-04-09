@@ -1,0 +1,109 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Security audit (npm)
+        run: npm audit --audit-level=high
+
+      - name: Security audit (pip)
+        run: |
+          pip install pip-audit
+          pip-audit -r backend/requirements.txt
+
+      - name: Security audit (cargo)
+        run: |
+          cargo install cargo-audit
+          cd src-tauri && cargo audit
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Frontend unit tests
+        run: npx vitest run
+
+      - name: Backend tests
+        run: |
+          cd backend
+          python -m pytest --ignore=tests/stress/ --ignore=tests/test_evolution.py -x -q
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build backend sidecar
+        run: |
+          cd backend
+          pyinstaller weekly_review_backend.spec
+          mkdir -p ../src-tauri/binaries
+          copy dist\weekly-review-backend.exe ..\src-tauri\binaries\weekly-review-backend-x86_64-pc-windows-msvc.exe
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Weekly Review ${{ github.ref_name }}'
+          releaseBody: 'See CHANGELOG.md for details.'
+          releaseDraft: true
+          prerelease: false

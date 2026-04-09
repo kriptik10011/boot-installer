@@ -1,0 +1,127 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+target/
+
+# Database
+*.db
+*.db-journal
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.development
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.eggs/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+venv/
+.venv/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Tauri
+src-tauri/target/
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+playwright-audit/
+playwright/.cache/
+
+# PyInstaller build artifacts
+backend/build/
+backend/dist/
+
+# Tauri sidecar binaries (built via CI)
+src-tauri/binaries/
+
+# Security: prevent accidental commits
+build/
+*.pem
+*.key
+credentials.*
+*.sqlite
+nul
+.beads/
+user feedback/
+
+# Development intelligence — never ship
+.claude/
+backend/.claude/
+.context/
+docs/
+.mcp.json
+.mgrepignore
+.hypothesis/
+.playwright-mcp/
+
+# Project-root AI instruction file — never ship
+/CLAUDE.md
+**/CLAUDE.md
+
+# Build / audit reports (dev-local, never ship)
+BUILD_AUDIT*.md
+BUILD_SUMMARY*
+BUNDLE_ANALYSIS*
+
+# Personal data and dev artifacts (never ship)
+/ROADMAP.md
+/BUILD.md
+/inventory_audit_*.json
+/verify-dashboard-temp.mjs
+/launch-production.*
+/create-production-shortcut.*
+/weekly-review-backend-*.spec
+
+# Lockfiles (regenerated at build time)
+/package-lock.json
+/backend/requirements.lock
+
+# Clean venv used for lockfile regeneration
+backend/venv-clean/
+
+# Dev automation scripts (never ship)
+scripts/auto-bugfix.sh
+scripts/feature_complete.sh
+scripts/audit_baseline.sh
+scripts/edit-verify.sh
+scripts/session-health.sh
+scripts/ship-gate.sh
+scripts/pre-commit-check.sh
+scripts/validate-observation.py
+scripts/context/
+scripts/knowledge/
+scripts/batch-type-fix.sh
+scripts/compare-screenshots.mjs
+scripts/evaluate-screenshot.mjs
+e2e/test-headless-mcp.sh
+e2e/shaderlab-capture.spec.ts
+e2e/visual-baseline.spec.ts
+backend/tests/capture_10k_diverse.py
