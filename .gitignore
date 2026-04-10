@@ -103,7 +103,7 @@ BUNDLE_ANALYSIS*
 /weekly-review-backend-*.spec
 
 # Lockfiles
-# package-lock.json is committed for reproducible builds (D-SU3)
+# package-lock.json is committed for reproducible builds
 /backend/requirements.lock
 
 # Clean venv used for lockfile regeneration
