@@ -3,7 +3,7 @@
  */
 
 import { request, getAuthHeaders, API_BASE_URL, ApiError } from './core';
-import type { DayNote, WeekReviewSummary } from '@/types/user';
+import type { WeekReviewSummary } from '@/types/user';
 
 // =============================================================================
 // BACKUP TYPES
@@ -73,20 +73,6 @@ export const backupApi = {
     request<DeleteAllDataResponse>('/backup/database', {
       method: 'DELETE',
     }),
-};
-
-// =============================================================================
-// DAY NOTES API
-// =============================================================================
-
-export const dayNotesApi = {
-  getWeek: (weekStart: string) => request<DayNote[]>(`/day-notes/week/${weekStart}`),
-  get: (date: string) => request<DayNote>(`/day-notes/${date}`),
-  upsert: (data: { date: string; content: string; mood?: string; is_pinned?: boolean }) =>
-    request<DayNote>('/day-notes/', { method: 'POST', body: data }),
-  update: (date: string, data: { content?: string; mood?: string; is_pinned?: boolean }) =>
-    request<DayNote>(`/day-notes/${date}`, { method: 'PUT', body: data }),
-  delete: (date: string) => request<void>(`/day-notes/${date}`, { method: 'DELETE' }),
 };
 
 // =============================================================================

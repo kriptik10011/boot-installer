@@ -15,7 +15,7 @@ export { eventsApi, recurrenceRuleApi, eventCategoriesApi } from './events';
 // Meals + Recipes
 export {
   recipesApi, mealsApi, tagsApi, dietaryRestrictionsApi,
-  batchPrepApi, foodParserApi, recipeCategoriesApi,
+  foodParserApi, recipeCategoriesApi,
 } from './meals';
 export type {
   ExtractedIngredient, ExtractedRecipe, ImportPreviewResponse, ImportConfirmRequest,
@@ -80,7 +80,7 @@ export type {
 } from './property';
 
 // User + System
-export { backupApi, dayNotesApi, weeklyReviewApi } from './user';
+export { backupApi, weeklyReviewApi } from './user';
 export type {
   DatabaseInfo, RestoreResponse, DeleteAllDataResponse,
 } from './user';

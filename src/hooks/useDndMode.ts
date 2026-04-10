@@ -7,8 +7,6 @@
  * Detection sources (in priority order):
  * 1. OS-level Focus mode (via Tauri notification permission)
  * 2. Manual toggle stored in localStorage
- *
- * @see INTELLIGENCE-PRINCIPLES.md - Context Gates
  */
 
 import { useState, useEffect, useCallback } from 'react';

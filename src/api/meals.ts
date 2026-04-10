@@ -1,5 +1,5 @@
 /**
- * Meals API — recipes, meal plans, batch prep, tags, dietary restrictions, food parser.
+ * Meals API — recipes, meal plans, tags, dietary restrictions, food parser.
  */
 
 import { request } from './core';
@@ -245,27 +245,6 @@ export const dietaryRestrictionsApi = {
     request<any[]>(`/dietary-restrictions/recipe/${recipeId}`, { method: 'PUT', body: { restriction_ids: restrictionIds } }),
   filterRecipes: (restrictionIds: number[], matchAll = true) =>
     request<any[]>(`/dietary-restrictions/filter/recipes?restriction_ids=${restrictionIds.join(',')}&match_all=${matchAll}`),
-};
-
-// =============================================================================
-// BATCH PREP API
-// =============================================================================
-
-export const batchPrepApi = {
-  list: () => request<any[]>('/batch-prep/'),
-  getWeek: (weekStart: string) => request<any[]>(`/batch-prep/week/${weekStart}`),
-  get: (id: number) => request<any>(`/batch-prep/${id}`),
-  create: (data: any) => request<any>('/batch-prep/', { method: 'POST', body: data }),
-  update: (id: number, data: any) => request<any>(`/batch-prep/${id}`, { method: 'PUT', body: data }),
-  delete: (id: number) => request<void>(`/batch-prep/${id}`, { method: 'DELETE' }),
-  complete: (id: number, actualMinutes?: number) =>
-    request<any>(`/batch-prep/${id}/complete${actualMinutes ? `?actual_duration_minutes=${actualMinutes}` : ''}`, { method: 'POST' }),
-  addTask: (sessionId: number, data: { task_name: string; estimated_minutes?: number }) =>
-    request<any>(`/batch-prep/${sessionId}/tasks`, { method: 'POST', body: data }),
-  toggleTask: (sessionId: number, taskId: number) =>
-    request<any>(`/batch-prep/${sessionId}/tasks/${taskId}`, { method: 'PUT' }),
-  linkMeals: (sessionId: number, mealIds: number[]) =>
-    request<any>(`/batch-prep/${sessionId}/meals`, { method: 'POST', body: mealIds }),
 };
 
 // =============================================================================

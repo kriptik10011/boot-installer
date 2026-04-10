@@ -29,7 +29,6 @@ import {
   shouldSurfaceInsight,
   loadDismissals,
 } from '@/utils/surfacing';
-import { FeedbackForm } from '@/components/feedback/FeedbackForm';
 import { ConfirmationModal } from '@/components/shared/ConfirmationModal';
 import { config } from '@/config';
 import type { ObservationStats, ObservationEvent } from '@/types';
@@ -462,13 +461,6 @@ export function UltimateDebugPanel() {
         </div>
 
         <div id="debug-feedback">
-          <CollapsibleSection
-            id="debug-feedback"
-            title="FEEDBACK - Share your thoughts"
-            defaultOpen={false}
-          >
-            <FeedbackForm />
-          </CollapsibleSection>
         </div>
       </div>
 

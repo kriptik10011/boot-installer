@@ -391,7 +391,7 @@ export const patternsApi = {
 };
 
 // =============================================================================
-// INTELLIGENCE API (Phase A4 — fully computed endpoints)
+// INTELLIGENCE API
 // =============================================================================
 
 export const intelligenceKeys = {

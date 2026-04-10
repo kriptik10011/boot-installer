@@ -56,8 +56,6 @@ if os.environ.get("WEEKLY_REVIEW_DEV_MODE") == "true":
         )
 
 # Legacy env var — fail fast to catch stale scripts/configs.
-# WEEKLY_REVIEW_DEBUG was renamed to WEEKLY_REVIEW_DEV_MODE to unify a single
-# dev/debug gate. Silent partial-enable was the worst class of bug we had.
 if os.environ.get("WEEKLY_REVIEW_DEBUG") is not None:
     raise RuntimeError(
         "WEEKLY_REVIEW_DEBUG is no longer supported. "
@@ -129,9 +127,8 @@ _check_dependencies()
 from app.database import Base  # noqa: E402
 
 # Import all models so they register with Base.metadata for create_all
-from app.routers import events, recipes, finances, meals, categories, summary, backup, recurrence, shopping_list, inventory, observation, patterns, feedback, tags  # noqa: E402
+from app.routers import events, recipes, finances, meals, categories, summary, backup, recurrence, shopping_list, inventory, observation, patterns, tags  # noqa: E402
 from app.routers import budget, income, transactions, savings, debt, net_worth, recurring, investments, reports  # noqa: E402
-from app.routers import day_notes, batch_prep  # noqa: E402
 from app.routers import dietary_restrictions  # noqa: E402
 from app.routers import calendar_import  # noqa: E402
 from app.routers import predictions  # noqa: E402
@@ -329,7 +326,6 @@ app.include_router(shopping_list.router, prefix="/api/shopping-list")
 app.include_router(inventory.router, prefix="/api/inventory")
 app.include_router(observation.router, prefix="/api/observation")
 app.include_router(patterns.router, prefix="/api/patterns")
-app.include_router(feedback.router, prefix="/api/feedback")
 app.include_router(tags.router, prefix="/api/tags")
 # Finance routers
 app.include_router(budget.router, prefix="/api/budget")
@@ -344,9 +340,6 @@ app.include_router(recurring.router, prefix="/api/recurring")
 app.include_router(investments.router, prefix="/api/investments")
 # Financial reports and analytics router
 app.include_router(reports.router, prefix="/api/reports")
-# Day notes and batch prep
-app.include_router(day_notes.router, prefix="/api/day-notes")
-app.include_router(batch_prep.router, prefix="/api/batch-prep")
 # Dietary restrictions
 app.include_router(dietary_restrictions.router, prefix="/api/dietary-restrictions")
 # Predictions

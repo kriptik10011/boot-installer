@@ -220,12 +220,6 @@ export { useWeeklyReview } from './useWeeklyReview';
 // Recipe category mutation
 export { useCreateRecipeCategory } from './useCreateRecipeCategory';
 
-// Day notes, batch prep, and ingredient reuse
-export { useWeekNotes, useDayNote, useUpsertDayNote, useDeleteDayNote } from './useDayNotes';
-export {
-  useWeekPrepSessions, usePrepSession, useCreatePrepSession,
-  useCompletePrepSession, useTogglePrepTask, useDeletePrepSession,
-} from './useBatchPrep';
 // Backend health polling
 export { useBackendHealth } from './useBackendHealth';
 export { useBackendReady, useHasEverConnected } from './useBackendReady';

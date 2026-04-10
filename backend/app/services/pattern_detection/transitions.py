@@ -27,8 +27,6 @@ Usage:
     # Export for CPT training in V2
     sequences = tracker.get_sequences_for_cpt()
     # [["MealPanel", "RecipeSearch", "ShoppingList"], ...]
-
-@see intelligence-decisions.md "Markov Transition Tracking (CPT-Ready)"
 """
 
 from dataclasses import dataclass, field

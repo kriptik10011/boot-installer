@@ -82,9 +82,7 @@ if ($installer) {
     Write-Host "  WARNING: No installer found in $installerDir" -ForegroundColor Yellow
 }
 
-# 7. Update desktop shortcut
-Write-Step "Updating desktop shortcut"
-& powershell -ExecutionPolicy Bypass -File scripts/update-desktop-shortcut.ps1
+# 7. Desktop shortcut (removed from automated build — run update-shortcut manually if needed)
 
 # Summary
 $elapsed = (Get-Date) - $startTime

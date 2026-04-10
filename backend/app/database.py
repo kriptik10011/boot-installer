@@ -400,28 +400,28 @@ def _run_versioned_migrations():
     if engine is None:
         return
     with engine.connect() as conn:
-        # D8: Float → Integer Cents
+        # Float → Integer Cents
         if not _has_migration_run(conn, "d8_float_to_cents"):
             _migrate_float_to_cents(conn)
             _mark_migration_done(conn, "d8_float_to_cents")
 
-        # D9: Composite Unique Constraints
+        # Composite Unique Constraints
         if not _has_migration_run(conn, "d9_unique_constraints"):
             _add_unique_constraints(conn)
             _mark_migration_done(conn, "d9_unique_constraints")
 
-        # D10: Property monetary Float → Integer Cents
+        # Property monetary Float → Integer Cents
         if not _has_migration_run(conn, "d10_property_float_to_cents"):
             _migrate_property_to_cents(conn)
             _mark_migration_done(conn, "d10_property_float_to_cents")
 
-        # D12: Fix CASCADE bugs (Asset→AssetHistory, MealPlanEntry→BatchPrepMeal)
+        # Fix CASCADE constraints (Asset→AssetHistory, MealPlanEntry→BatchPrepMeal)
         # SQLite cannot ALTER FK constraints, so we recreate affected tables.
         if not _has_migration_run(conn, "d12_cascade_fixes"):
             _fix_cascade_constraints(conn)
             _mark_migration_done(conn, "d12_cascade_fixes")
 
-        # D13: UNIQUE constraint on ingredients.canonical_name
+        # UNIQUE constraint on ingredients.canonical_name
         if not _has_migration_run(conn, "d13_canonical_name_unique"):
             _add_canonical_name_unique(conn)
             _mark_migration_done(conn, "d13_canonical_name_unique")
@@ -435,7 +435,7 @@ def _run_versioned_migrations():
 
 
 def _migrate_float_to_cents(conn):
-    """D8: Convert monetary float columns to integer cents in-place.
+    """Convert monetary float columns to integer cents in-place.
 
     SQLite stores REAL and INTEGER in the same dynamic type system,
     so we can convert values in-place without table recreation.
@@ -478,11 +478,11 @@ def _migrate_float_to_cents(conn):
             conn.execute(sa.text(
                 f"UPDATE {table} SET {col} = CAST(ROUND({col} * 100) AS INTEGER) WHERE {col} IS NOT NULL"
             ))
-            log.info("D8: Converted %s.%s to integer cents", table, col)
+            log.info("Converted %s.%s to integer cents", table, col)
 
 
 def _add_unique_constraints(conn):
-    """D9: Add composite unique constraints via unique indexes.
+    """Add composite unique constraints via unique indexes.
 
     SQLite doesn't support ALTER TABLE ADD CONSTRAINT, so we use
     CREATE UNIQUE INDEX which has the same effect. Duplicates must
@@ -527,15 +527,15 @@ def _add_unique_constraints(conn):
             conn.execute(sa.text(
                 f"CREATE UNIQUE INDEX IF NOT EXISTS {idx_name} ON {table} ({cols_csv})"
             ))
-            log.info("D9: Added unique constraint %s on %s(%s)", idx_name, table, cols_csv)
+            log.info("Added unique constraint %s on %s(%s)", idx_name, table, cols_csv)
         except Exception as e:
-            log.warning("D9: Could not add %s: %s", idx_name, e)
+            log.warning("Could not add %s: %s", idx_name, e)
 
 
 def _migrate_property_to_cents(conn):
-    """D10: Convert property monetary float columns to integer cents in-place.
+    """Convert property monetary float columns to integer cents in-place.
 
-    Same pattern as D8. Excludes non-monetary Float columns:
+    Excludes non-monetary Float columns:
     - property_units.bathrooms (count, e.g. 1.5)
     - security_deposits.interest_rate (APR percentage)
     - mortgages.interest_rate (APR percentage)
@@ -556,7 +556,7 @@ def _migrate_property_to_cents(conn):
         try:
             existing = {c["name"] for c in inspector.get_columns(table)}
         except Exception as e:
-            log.debug("Skipping D10 cents migration for table %s (not found): %s", table, e)
+            log.debug("Skipping property cents migration for table %s (not found): %s", table, e)
             continue
 
         for col in columns:
@@ -565,26 +565,26 @@ def _migrate_property_to_cents(conn):
             conn.execute(sa.text(
                 f"UPDATE {table} SET {col} = CAST(ROUND({col} * 100) AS INTEGER) WHERE {col} IS NOT NULL"
             ))
-            log.info("D10: Converted %s.%s to integer cents", table, col)
+            log.info("Converted property %s.%s to integer cents", table, col)
 
 
 def _fix_cascade_constraints(conn):
-    """D12: Fix missing CASCADE/SET NULL on FK constraints.
+    """Fix missing CASCADE/SET NULL on FK constraints.
 
     SQLite cannot ALTER existing FK constraints. We must recreate the
     affected tables with the correct ON DELETE clauses.
 
-    Bug 1: asset_history.asset_id needs ON DELETE CASCADE
-    Bug 2: batch_prep_meals.meal_id needs ON DELETE SET NULL + nullable
+    - asset_history.asset_id needs ON DELETE CASCADE
+    - batch_prep_meals.meal_id needs ON DELETE SET NULL + nullable
     """
     inspector = sa.inspect(engine)
 
-    # --- Bug 1: asset_history.asset_id ON DELETE CASCADE ---
+    # --- asset_history.asset_id ON DELETE CASCADE ---
     if "asset_history" in inspector.get_table_names():
         try:
-            # Cleanup from any previous partial run (CRITICAL-2 fix)
+            # Cleanup from any previous partial run
             conn.execute(sa.text("DROP TABLE IF EXISTS asset_history_new"))
-            # Prune orphaned rows before recreation (HIGH-2 fix)
+            # Prune orphaned rows before recreation
             conn.execute(sa.text(
                 "DELETE FROM asset_history WHERE asset_id NOT IN (SELECT id FROM assets)"
             ))
@@ -608,14 +608,14 @@ def _fix_cascade_constraints(conn):
             conn.execute(sa.text("ALTER TABLE asset_history_new RENAME TO asset_history"))
             conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_asset_history_asset_id ON asset_history (asset_id)"))
             conn.execute(sa.text("CREATE INDEX IF NOT EXISTS ix_asset_history_date ON asset_history (date)"))
-            log.info("D12: Recreated asset_history with ON DELETE CASCADE")
+            log.info("Recreated asset_history with ON DELETE CASCADE")
         except Exception as e:
-            log.warning("D12: Could not fix asset_history cascade: %s", e)
+            log.warning("Could not fix asset_history cascade: %s", e)
 
-    # --- Bug 2: batch_prep_meals.meal_id ON DELETE SET NULL + nullable ---
+    # --- batch_prep_meals.meal_id ON DELETE SET NULL + nullable ---
     if "batch_prep_meals" in inspector.get_table_names():
         try:
-            # Cleanup from any previous partial run (CRITICAL-2 fix)
+            # Cleanup from any previous partial run
             conn.execute(sa.text("DROP TABLE IF EXISTS batch_prep_meals_new"))
             # Prune orphaned rows (session or meal deleted without cascade)
             conn.execute(sa.text(
@@ -639,13 +639,13 @@ def _fix_cascade_constraints(conn):
             conn.execute(sa.text("ALTER TABLE batch_prep_meals_new RENAME TO batch_prep_meals"))
             conn.execute(sa.text("CREATE INDEX IF NOT EXISTS idx_bpm_session_id ON batch_prep_meals (session_id)"))
             conn.execute(sa.text("CREATE INDEX IF NOT EXISTS idx_bpm_meal_id ON batch_prep_meals (meal_id)"))
-            log.info("D12: Recreated batch_prep_meals with ON DELETE SET NULL + CASCADE")
+            log.info("Recreated batch_prep_meals with ON DELETE SET NULL + CASCADE")
         except Exception as e:
-            log.warning("D12: Could not fix batch_prep_meals cascade: %s", e)
+            log.warning("Could not fix batch_prep_meals cascade: %s", e)
 
 
 def _backfill_null_ingredient_ids(conn):
-    """D14: Backfill any NULL ingredient_ids in inventory_items and shopping_list_items.
+    """Backfill any NULL ingredient_ids in inventory_items and shopping_list_items.
 
     Every production code path sets ingredient_id via find_or_create_ingredient(),
     but any legacy items may have NULLs. This migration creates a
@@ -695,11 +695,11 @@ def _backfill_null_ingredient_ids(conn):
                 f"UPDATE {table} SET ingredient_id = :ing_id WHERE id = :row_id"
             ), {"ing_id": ing_id, "row_id": row_id})
 
-        log.info("D14: Backfilled %d NULL ingredient_ids in %s", len(nulls), table)
+        log.info("Backfilled %d NULL ingredient_ids in %s", len(nulls), table)
 
 
 def _add_canonical_name_unique(conn):
-    """D13: Add UNIQUE constraint on ingredients.canonical_name.
+    """Add UNIQUE constraint on ingredients.canonical_name.
 
     The canonical name is the universal join key for the food system.
     Making it UNIQUE enforces the 1:1 canonical→ingredient invariant
@@ -748,13 +748,13 @@ def _add_canonical_name_unique(conn):
 
             conn.execute(sa.text("DELETE FROM ingredients WHERE id = :dup"), {"dup": dup_id})
 
-        log.info("D13: Merged %d duplicates for canonical '%s' (survivor id=%d)", cnt - 1, canonical, survivor_id)
+        log.info("Merged %d duplicates for canonical '%s' (survivor id=%d)", cnt - 1, canonical, survivor_id)
 
     # Now add the UNIQUE index
     conn.execute(sa.text(
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_ingredients_canonical_name ON ingredients (canonical_name)"
     ))
-    log.info("D13: Added UNIQUE index on ingredients.canonical_name")
+    log.info("Added UNIQUE index on ingredients.canonical_name")
 
 
 def _create_fk_indexes():

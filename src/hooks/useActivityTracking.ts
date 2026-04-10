@@ -9,9 +9,6 @@
  * - Keyboard bursts (typing = busy)
  * - Inter-keystroke intervals (<100ms = flow state)
  * - 30-second debouncer threshold for idle detection
- *
- * @see INTELLIGENCE-PRINCIPLES.md v3.0.0
- * @see intelligence-decisions.md
  */
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';

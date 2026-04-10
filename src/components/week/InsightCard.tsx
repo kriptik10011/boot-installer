@@ -6,8 +6,6 @@
  * - Accept button (primary action)
  * - Dismiss button (remove from view)
  * - "Don't show again" option (30-day suppression)
- *
- * @see intelligence-decisions.md "Insight Card Interaction Pattern"
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';

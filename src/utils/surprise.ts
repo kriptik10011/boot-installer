@@ -15,8 +15,6 @@
  * Simplified: Z-score against user's historical Gaussian for that metric.
  *
  * Threshold: Surface if z-score > 2 (outside 95% of user's normal)
- *
- * @see intelligence-decisions.md "Bayesian Surprise for Summary Filtering"
  */
 
 // =============================================================================

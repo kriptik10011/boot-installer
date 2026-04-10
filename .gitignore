@@ -75,16 +75,18 @@ user feedback/
 # Development intelligence — never ship
 .claude/
 backend/.claude/
+backend/docs/
 .context/
-docs/
+docs/*
+!docs/architecture/
 .mcp.json
 .mgrepignore
 .hypothesis/
 .playwright-mcp/
 
 # Project-root AI instruction file — never ship
-/CLAUDE.md
-**/CLAUDE.md
+/CLAUDE*.md
+**/CLAUDE*.md
 
 # Build / audit reports (dev-local, never ship)
 BUILD_AUDIT*.md
@@ -100,8 +102,8 @@ BUNDLE_ANALYSIS*
 /create-production-shortcut.*
 /weekly-review-backend-*.spec
 
-# Lockfiles (regenerated at build time)
-/package-lock.json
+# Lockfiles
+# package-lock.json is committed for reproducible builds (D-SU3)
 /backend/requirements.lock
 
 # Clean venv used for lockfile regeneration

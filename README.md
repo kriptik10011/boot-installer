@@ -31,12 +31,23 @@ Your personal command center for the week ahead. A desktop application that unif
 ### Requirements
 
 - Windows 10/11 (64-bit)
-- 100MB disk space
+- 500MB disk space
 - Internet connection (for initial setup only)
 
 ## Build from Source
 
-Building from source requires Node.js 20+, Python 3.11+, and the Rust toolchain (for Tauri).
+### Prerequisites
+
+- [Node.js 20+](https://nodejs.org/) (LTS recommended)
+- [Python 3.11+](https://www.python.org/downloads/)
+- [Rust toolchain](https://rustup.rs/) (for Tauri native shell)
+- [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **"Desktop development with C++"** workload (required by the `sqlcipher3` Python package)
+
+> **Windows build note**: The `sqlcipher3` package compiles a native C extension during
+> `pip install`. If you see compilation errors mentioning missing headers or `cl.exe`,
+> install Visual Studio Build Tools and select the "Desktop development with C++" workload.
+
+### Build Steps
 
 ```bash
 # 1. Install frontend dependencies
@@ -45,6 +56,7 @@ npm install
 # 2. Install backend dependencies
 cd backend
 pip install -r requirements.txt
+pip install pyinstaller
 cd ..
 
 # 3. Build the Python sidecar binary (required before any Tauri build)
@@ -56,10 +68,10 @@ npm run tauri:build
 
 The installer is written to `src-tauri/target/release/bundle/nsis/`.
 
-Notes:
-- Step 3 (`sidecar:build`) is mandatory. The compiled sidecar binary is gitignored, so a fresh clone has no backend executable until this step runs. Skipping it causes `cargo check` and `tauri:build` to fail with a missing-binary error.
-- `npm install` resolves to current minor versions of each dependency. If a build breaks after a dependency update, please file an issue.
-- `npm run tauri:dev` starts a hot-reload development build of the full desktop app.
+### Notes
+
+- Step 3 (`sidecar:build`) is mandatory. The compiled sidecar binary is gitignored, so a fresh clone has no backend executable until this step runs. Skipping it causes `tauri build` to fail with a missing-binary error.
+- `npm run tauri:dev` starts a hot-reload development build of the full desktop app (requires the backend running separately).
 
 ## Getting Started
 

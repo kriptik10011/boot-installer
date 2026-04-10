@@ -8,9 +8,6 @@
  * - Learning state when confidence < 0.5
  * - Bounded Deferral: Queues insights for opportune moments
  * - Fogarty Signals: Respects user flow state
- *
- * @see intelligence-decisions.md for all cached decisions
- * @see INTELLIGENCE-PRINCIPLES.md v3.0.0
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -55,8 +52,7 @@ interface SurfacedInsight {
   resurfaceReason?: 'idle' | 'deadline' | 'soon';  // Why it's showing now
 }
 
-// Priority ranking from intelligence-decisions.md
-// Bills > Conflicts > Patterns > Suggestions
+// Priority: Bills > Conflicts > Patterns > Suggestions
 const TYPE_PRIORITY: Record<string, number> = {
   bill_due_soon: 1,
   bill_overdue: 1,
