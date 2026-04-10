@@ -94,7 +94,7 @@ jobs:
               "$env:LOCALAPPDATA\Programs\Weekly Review"
             )
             foreach ($path in $fallbacks) {
-              if (Test-Path "$path\Weekly Review.exe") {
+              if (Test-Path "$path\weekly-review.exe") {
                 Write-Output "Found app at fallback: $path"
                 "INSTALL_DIR=$path" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
                 Write-Output "PASS: Install directory discovered via fallback"
@@ -132,8 +132,8 @@ jobs:
           }
 
           $required = @(
-            "Weekly Review.exe",
-            "weekly-review-backend-x86_64-pc-windows-msvc.exe"
+            "weekly-review.exe",
+            "weekly-review-backend.exe"
           )
 
           Write-Output "=== Install directory: $dir ==="
@@ -162,7 +162,7 @@ jobs:
       - name: Start backend sidecar standalone
         shell: pwsh
         run: |
-          $sidecar = Get-ChildItem "$env:INSTALL_DIR" -Recurse -Filter "weekly-review-backend-*.exe" | Select-Object -First 1
+          $sidecar = Get-ChildItem "$env:INSTALL_DIR" -Recurse -Filter "weekly-review-backend*.exe" | Select-Object -First 1
           if (-not $sidecar) {
             Write-Error "Sidecar exe not found in $env:INSTALL_DIR"
             exit 1
@@ -213,7 +213,7 @@ jobs:
       - name: Launch full app
         shell: pwsh
         run: |
-          $exe = Join-Path $env:INSTALL_DIR "Weekly Review.exe"
+          $exe = Join-Path $env:INSTALL_DIR "weekly-review.exe"
           Write-Output "Launching: $exe"
 
           $proc = Start-Process -FilePath $exe -PassThru
@@ -248,7 +248,7 @@ jobs:
         shell: pwsh
         run: |
           $procs = Get-Process | Where-Object {
-            $_.ProcessName -match "Weekly Review|weekly-review-backend"
+            $_.ProcessName -match "weekly-review"
           }
 
           Write-Output "=== App processes ==="
@@ -265,7 +265,7 @@ jobs:
         if: always()
         run: |
           Get-Process | Where-Object {
-            $_.ProcessName -match "Weekly Review|weekly-review-backend"
+            $_.ProcessName -match "weekly-review"
           } | Stop-Process -Force -ErrorAction SilentlyContinue
           Start-Sleep -Seconds 3
           Write-Output "App processes stopped"
@@ -278,7 +278,7 @@ jobs:
           $uninstaller = Join-Path $env:INSTALL_DIR "uninstall.exe"
           if (-not (Test-Path $uninstaller)) {
             # Try alternate Tauri uninstaller name
-            $uninstaller = Join-Path $env:INSTALL_DIR "Uninstall Weekly Review.exe"
+            $uninstaller = Join-Path $env:INSTALL_DIR "Uninstall weekly-review.exe"
           }
           if (-not (Test-Path $uninstaller)) {
             Write-Error "FAIL: No uninstaller found in $env:INSTALL_DIR"
@@ -289,7 +289,7 @@ jobs:
           $proc = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru -NoNewWindow
 
           # NSIS uninstaller spawns a child — poll for completion
-          $mainExe = Join-Path $env:INSTALL_DIR "Weekly Review.exe"
+          $mainExe = Join-Path $env:INSTALL_DIR "weekly-review.exe"
           $timeout = 60
           $elapsed = 0
           while ($elapsed -lt $timeout) {
@@ -354,7 +354,7 @@ jobs:
         shell: pwsh
         run: |
           Get-Process | Where-Object {
-            $_.ProcessName -match "Weekly Review|weekly-review-backend"
+            $_.ProcessName -match "weekly-review"
           } | Stop-Process -Force -ErrorAction SilentlyContinue
 
           $dir = $env:INSTALL_DIR
