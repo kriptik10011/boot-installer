@@ -89,8 +89,9 @@ def main():
             app,
             host=host,
             port=port,
-            log_level="warning",  # Reduce noise in production
+            log_level="warning",
             access_log=False,
+            log_config=None,  # Disable uvicorn's default logging (crashes with console=False in PyInstaller)
         )
     except Exception as e:
         logger.error(f"Failed to start server: {e}")

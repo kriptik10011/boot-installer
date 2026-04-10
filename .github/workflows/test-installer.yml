@@ -160,6 +160,8 @@ jobs:
       # ── Phase 2: Backend Sidecar Test ──
 
       - name: Start backend sidecar standalone
+        id: phase2_sidecar
+        continue-on-error: true
         shell: pwsh
         run: |
           $sidecar = Get-ChildItem "$env:INSTALL_DIR" -Recurse -Filter "weekly-review-backend*.exe" | Select-Object -First 1
@@ -169,7 +171,19 @@ jobs:
           }
           Write-Output "Starting sidecar: $($sidecar.FullName)"
 
-          $proc = Start-Process -FilePath $sidecar.FullName -PassThru -WindowStyle Hidden
+          $proc = Start-Process -FilePath $sidecar.FullName -PassThru -WindowStyle Hidden `
+            -RedirectStandardError "$env:GITHUB_WORKSPACE\sidecar-stderr.txt"
+
+          # Check if process crashed immediately
+          Start-Sleep -Seconds 1
+          if ($proc.HasExited) {
+            Write-Error "FAIL: Sidecar exited immediately (exit code $($proc.ExitCode))"
+            if (Test-Path "$env:GITHUB_WORKSPACE\sidecar-stderr.txt") {
+              Write-Output "=== sidecar stderr ==="
+              Get-Content "$env:GITHUB_WORKSPACE\sidecar-stderr.txt"
+            }
+            exit 1
+          }
           Write-Output "Sidecar PID: $($proc.Id)"
           "SIDECAR_PID=$($proc.Id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -181,6 +195,16 @@ jobs:
           while ($elapsed -lt $maxWait -and -not $ready) {
             Start-Sleep -Seconds 2
             $elapsed += 2
+
+            if ($proc.HasExited) {
+              Write-Error "FAIL: Sidecar crashed after ${elapsed}s (exit code $($proc.ExitCode))"
+              if (Test-Path "$env:GITHUB_WORKSPACE\sidecar-stderr.txt") {
+                Write-Output "=== sidecar stderr ==="
+                Get-Content "$env:GITHUB_WORKSPACE\sidecar-stderr.txt"
+              }
+              exit 1
+            }
+
             try {
               $resp = Invoke-WebRequest -Uri "${{ env.HEALTH_URL }}" -TimeoutSec 2 -ErrorAction Stop
               if ($resp.StatusCode -eq 200) {
@@ -211,6 +235,8 @@ jobs:
       # ── Phase 3: Full App Launch ──
 
       - name: Launch full app
+        id: phase3_app
+        continue-on-error: true
         shell: pwsh
         run: |
           $exe = Join-Path $env:INSTALL_DIR "weekly-review.exe"
@@ -343,9 +369,23 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: installer-test-diagnostics
+          name: installer-test-diagnostics-${{ github.run_id }}
           path: diagnostics/
           retention-days: 7
+
+      # ── Final Gate ──
+
+      - name: Check phase results
+        shell: pwsh
+        run: |
+          $failed = @()
+          if ("${{ steps.phase2_sidecar.outcome }}" -eq "failure") { $failed += "Phase 2 (sidecar standalone)" }
+          if ("${{ steps.phase3_app.outcome }}" -eq "failure") { $failed += "Phase 3 (full app launch)" }
+          if ($failed.Count -gt 0) {
+            Write-Error "FAILED PHASES: $($failed -join ', ')"
+            exit 1
+          }
+          Write-Output "PASS: All phases completed successfully"
 
       # ── Cleanup ──
 

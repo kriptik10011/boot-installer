@@ -75,11 +75,11 @@ The installer is written to `src-tauri/target/release/bundle/nsis/`.
 
 ## Getting Started
 
-1. **First Launch** - Choose "Start Fresh" or "Explore with sample data"
-2. **Add Events** - Click any day card to add events
-3. **Plan Meals** - Use the meals section to plan your week
-4. **Track Bills** - Add recurring bills to stay on top of finances
-5. **Review Weekly** - Use Sunday evening planning mode for best results
+1. **First Launch** - Create an account and set a PIN (6+ digits)
+2. **Choose Your View** - Pick between Radial (3D) or Grid (traditional) layout
+3. **Add Events** - Click any day card to add appointments and tasks
+4. **Plan Meals** - Use the meals section to plan your week and generate shopping lists
+5. **Track Bills** - Add recurring bills to stay on top of finances
 
 ## Data Privacy
 
@@ -98,13 +98,19 @@ The installer is written to `src-tauri/target/release/bundle/nsis/`.
 ## Troubleshooting
 
 ### App won't start
-1. Check if another instance is running in Task Manager
-2. Try running as Administrator
-3. Reinstall the application
+1. Check if another instance is running in Task Manager (look for "Weekly Review" or "weekly-review-backend")
+2. Check if port 8000 is in use by another application
+3. On Windows 10: the first launch may take a moment to download the WebView2 runtime (requires internet)
+4. Try reinstalling the application
+
+### Blank screen after login
+1. The backend may still be starting — wait 10-15 seconds
+2. Check `%LOCALAPPDATA%\WeeklyReview\backend_startup.log` for errors
 
 ### Data not saving
 1. Check disk space
 2. Verify write permissions to `%LOCALAPPDATA%\WeeklyReview`
+3. Data files: `weekly_review.db` (encrypted), `auth.db` (account info)
 
 ## License
 
