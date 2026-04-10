@@ -1,0 +1,364 @@
+name: Test Installer
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to test (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+      release_repo:
+        description: 'Owner/repo where release lives'
+        required: true
+        default: 'kriptik10011/boot-installer'
+
+# When ready for auto-trigger, uncomment:
+# release:
+#   types: [published]
+
+jobs:
+  test-installer:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    env:
+      BACKEND_PORT: 8000
+      HEALTH_URL: http://127.0.0.1:8000/api/health
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download installer from release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.inputs.release_tag || github.event.release.tag_name }}"
+          REPO="${{ github.event.inputs.release_repo || 'kriptik10011/boot-installer' }}"
+          echo "Downloading release $TAG from $REPO"
+          gh release download "$TAG" \
+            --repo "$REPO" \
+            --pattern "*.exe" \
+            --dir ./installer
+          ls -lh ./installer/
+
+      - name: Verify download
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem ./installer/*.exe | Select-Object -First 1
+          if (-not $installer) {
+            Write-Error "No installer exe found in ./installer/"
+            exit 1
+          }
+          $sizeMB = [math]::Round($installer.Length / 1MB, 1)
+          Write-Output "Installer: $($installer.Name) ($sizeMB MB)"
+          if ($installer.Length -lt 40MB) {
+            Write-Error "Installer too small ($sizeMB MB) — likely corrupt"
+            exit 1
+          }
+          Write-Output "PASS: Download verified"
+
+      # ── Phase 1: Silent Install ──
+
+      - name: Silent install
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem ./installer/*.exe).FullName
+          Write-Output "Running silent install..."
+
+          $proc = Start-Process -FilePath $installer `
+            -ArgumentList "/S" `
+            -Wait -PassThru -NoNewWindow
+
+          if ($proc.ExitCode -ne 0) {
+            Write-Error "Install failed (exit code $($proc.ExitCode))"
+            exit 1
+          }
+          Write-Output "PASS: Install completed (exit code 0)"
+
+      - name: Discover install location from registry
+        shell: pwsh
+        run: |
+          # Tauri currentUser NSIS installs to %LOCALAPPDATA% and registers in HKCU
+          $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\Weekly Review"
+
+          # Give registry a moment to settle
+          Start-Sleep -Seconds 2
+
+          if (-not (Test-Path $regPath)) {
+            # Fallback: check common Tauri install locations
+            $fallbacks = @(
+              "$env:LOCALAPPDATA\Weekly Review",
+              "$env:LOCALAPPDATA\com.weeklyreview.app",
+              "$env:LOCALAPPDATA\Programs\Weekly Review"
+            )
+            foreach ($path in $fallbacks) {
+              if (Test-Path "$path\Weekly Review.exe") {
+                Write-Output "Found app at fallback: $path"
+                "INSTALL_DIR=$path" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+                Write-Output "PASS: Install directory discovered via fallback"
+                exit 0
+              }
+            }
+            Write-Error "FAIL: Cannot find install location (no registry entry, no fallback match)"
+            exit 1
+          }
+
+          $entry = Get-ItemProperty $regPath
+          $installDir = $entry.InstallLocation.Trim('"')
+          Write-Output "PASS: Registry entry found"
+          Write-Output "  DisplayName: $($entry.DisplayName)"
+          Write-Output "  Version: $($entry.DisplayVersion)"
+          Write-Output "  InstallLocation: $installDir"
+
+          "INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Exclude install dir from Windows Defender
+        shell: pwsh
+        run: |
+          if ($env:INSTALL_DIR) {
+            Add-MpPreference -ExclusionPath "$env:INSTALL_DIR"
+            Write-Output "Defender exclusion added for $env:INSTALL_DIR"
+          }
+
+      - name: Verify installed files
+        shell: pwsh
+        run: |
+          $dir = $env:INSTALL_DIR
+          if (-not $dir) {
+            Write-Error "INSTALL_DIR not set — discovery step failed"
+            exit 1
+          }
+
+          $required = @(
+            "Weekly Review.exe",
+            "weekly-review-backend-x86_64-pc-windows-msvc.exe"
+          )
+
+          Write-Output "=== Install directory: $dir ==="
+          Get-ChildItem $dir -Recurse -File |
+            Select-Object @{N='Path';E={$_.FullName.Replace($dir,'')}}, @{N='Size';E={"$([math]::Round($_.Length/1KB))KB"}} |
+            Format-Table -AutoSize
+
+          $missing = @()
+          foreach ($file in $required) {
+            $found = Get-ChildItem $dir -Recurse -Filter $file
+            if ($found) {
+              Write-Output "PASS: $file ($([math]::Round($found.Length/1MB,1)) MB)"
+            } else {
+              Write-Output "FAIL: $file not found"
+              $missing += $file
+            }
+          }
+
+          if ($missing.Count -gt 0) {
+            Write-Error "Missing files: $($missing -join ', ')"
+            exit 1
+          }
+
+      # ── Phase 2: Backend Sidecar Test ──
+
+      - name: Start backend sidecar standalone
+        shell: pwsh
+        run: |
+          $sidecar = Get-ChildItem "$env:INSTALL_DIR" -Recurse -Filter "weekly-review-backend-*.exe" | Select-Object -First 1
+          if (-not $sidecar) {
+            Write-Error "Sidecar exe not found in $env:INSTALL_DIR"
+            exit 1
+          }
+          Write-Output "Starting sidecar: $($sidecar.FullName)"
+
+          $proc = Start-Process -FilePath $sidecar.FullName -PassThru -WindowStyle Hidden
+          Write-Output "Sidecar PID: $($proc.Id)"
+          "SIDECAR_PID=$($proc.Id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          # Poll for health
+          $maxWait = 30
+          $elapsed = 0
+          $ready = $false
+
+          while ($elapsed -lt $maxWait -and -not $ready) {
+            Start-Sleep -Seconds 2
+            $elapsed += 2
+            try {
+              $resp = Invoke-WebRequest -Uri "${{ env.HEALTH_URL }}" -TimeoutSec 2 -ErrorAction Stop
+              if ($resp.StatusCode -eq 200) {
+                $ready = $true
+                Write-Output "PASS: Backend healthy after ${elapsed}s"
+                Write-Output "Response: $($resp.Content)"
+              }
+            } catch {
+              Write-Output "  Waiting... ${elapsed}s"
+            }
+          }
+
+          if (-not $ready) {
+            Write-Error "FAIL: Backend did not respond within ${maxWait}s"
+            exit 1
+          }
+
+      - name: Stop standalone sidecar
+        shell: pwsh
+        if: always()
+        run: |
+          if ($env:SIDECAR_PID) {
+            Stop-Process -Id $env:SIDECAR_PID -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+            Write-Output "Sidecar stopped"
+          }
+
+      # ── Phase 3: Full App Launch ──
+
+      - name: Launch full app
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:INSTALL_DIR "Weekly Review.exe"
+          Write-Output "Launching: $exe"
+
+          $proc = Start-Process -FilePath $exe -PassThru
+          Write-Output "App PID: $($proc.Id)"
+          "APP_PID=$($proc.Id)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+          # Wait for the app to spawn the sidecar and backend to respond
+          $maxWait = 60
+          $elapsed = 0
+          $ready = $false
+
+          while ($elapsed -lt $maxWait -and -not $ready) {
+            Start-Sleep -Seconds 2
+            $elapsed += 2
+            try {
+              $resp = Invoke-WebRequest -Uri "${{ env.HEALTH_URL }}" -TimeoutSec 2 -ErrorAction Stop
+              if ($resp.StatusCode -eq 200) {
+                $ready = $true
+                Write-Output "PASS: Full app backend healthy after ${elapsed}s"
+              }
+            } catch {
+              Write-Output "  Waiting for app startup... ${elapsed}s"
+            }
+          }
+
+          if (-not $ready) {
+            Write-Error "FAIL: App backend did not start within ${maxWait}s"
+            exit 1
+          }
+
+      - name: Verify app processes running
+        shell: pwsh
+        run: |
+          $procs = Get-Process | Where-Object {
+            $_.ProcessName -match "Weekly Review|weekly-review-backend"
+          }
+
+          Write-Output "=== App processes ==="
+          $procs | Format-Table Id, ProcessName, @{N='Memory(MB)';E={[math]::Round($_.WorkingSet64/1MB,1)}} -AutoSize
+
+          if ($procs.Count -lt 2) {
+            Write-Error "FAIL: Expected at least 2 processes (app + sidecar), found $($procs.Count)"
+            exit 1
+          }
+          Write-Output "PASS: App and sidecar both running"
+
+      - name: Stop app
+        shell: pwsh
+        if: always()
+        run: |
+          Get-Process | Where-Object {
+            $_.ProcessName -match "Weekly Review|weekly-review-backend"
+          } | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
+          Write-Output "App processes stopped"
+
+      # ── Phase 4: Uninstaller Test ──
+
+      - name: Test uninstaller
+        shell: pwsh
+        run: |
+          $uninstaller = Join-Path $env:INSTALL_DIR "uninstall.exe"
+          if (-not (Test-Path $uninstaller)) {
+            # Try alternate Tauri uninstaller name
+            $uninstaller = Join-Path $env:INSTALL_DIR "Uninstall Weekly Review.exe"
+          }
+          if (-not (Test-Path $uninstaller)) {
+            Write-Error "FAIL: No uninstaller found in $env:INSTALL_DIR"
+            exit 1
+          }
+
+          Write-Output "Running uninstaller: $uninstaller"
+          $proc = Start-Process -FilePath $uninstaller -ArgumentList "/S" -Wait -PassThru -NoNewWindow
+
+          # NSIS uninstaller spawns a child — poll for completion
+          $mainExe = Join-Path $env:INSTALL_DIR "Weekly Review.exe"
+          $timeout = 60
+          $elapsed = 0
+          while ($elapsed -lt $timeout) {
+            Start-Sleep -Seconds 2
+            $elapsed += 2
+            if (-not (Test-Path $mainExe)) { break }
+            Write-Output "  Waiting for uninstall... ${elapsed}s"
+          }
+
+          if (Test-Path $mainExe) {
+            Write-Error "FAIL: Main exe still exists after ${timeout}s"
+            exit 1
+          }
+
+          Write-Output "PASS: Uninstall completed — app files removed"
+
+      # ── Diagnostics (on failure only) ──
+
+      - name: Capture diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $diag = "$env:GITHUB_WORKSPACE\diagnostics"
+          New-Item -ItemType Directory -Force -Path $diag | Out-Null
+
+          # Installed files
+          $dir = $env:INSTALL_DIR
+          if ($dir -and (Test-Path $dir)) {
+            Get-ChildItem $dir -Recurse |
+              Select-Object FullName, Length, LastWriteTime |
+              Out-File "$diag\installed-files.txt"
+          } else {
+            "Install directory not found: $dir" | Out-File "$diag\installed-files.txt"
+          }
+
+          # Port status
+          netstat -ano | Select-String ":${{ env.BACKEND_PORT }}" |
+            Out-File "$diag\port-status.txt"
+
+          # Backend startup log
+          $logPath = "$env:LOCALAPPDATA\WeeklyReview\backend_startup.log"
+          if (Test-Path $logPath) {
+            Copy-Item $logPath "$diag\backend-startup.log"
+          } else {
+            "No backend log at $logPath" | Out-File "$diag\backend-log.txt"
+          }
+
+          Write-Output "Diagnostics captured"
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-test-diagnostics
+          path: diagnostics/
+          retention-days: 7
+
+      # ── Cleanup ──
+
+      - name: Cleanup
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process | Where-Object {
+            $_.ProcessName -match "Weekly Review|weekly-review-backend"
+          } | Stop-Process -Force -ErrorAction SilentlyContinue
+
+          $dir = $env:INSTALL_DIR
+          if ($dir -and (Test-Path $dir)) {
+            Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
+          }
+          Write-Output "Cleanup complete"
