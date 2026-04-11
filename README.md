@@ -33,7 +33,7 @@ Your personal command center for the week ahead. A desktop application that unif
 
 - Windows 10/11 (64-bit)
 - 500MB disk space
-- Internet connection (for initial setup only)
+- Internet connection not required (optional: recipe import from URLs)
 
 ## Build from Source
 
