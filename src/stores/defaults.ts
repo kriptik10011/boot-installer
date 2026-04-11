@@ -18,7 +18,7 @@ export const DEFAULT_ARC_WIDGETS: Record<'north' | 'east' | 'south' | 'west', Ar
 // Re-export for migrations (avoids circular dependency with registry)
 export { DEFAULT_ARC_CARD_CONFIG } from '@/components/finance/radial/registry/types';
 
-// Default per-domain configs — matched to ShaderLab BASE_PRESET (W3.1)
+// Default per-domain configs — matched to the Base preset values
 // 4 distinct TPMS types with tuned frequencies, thickness, iso offsets, and color palettes
 export const DEFAULT_DOMAIN_CONFIGS: [LatticeDomainConfig, LatticeDomainConfig, LatticeDomainConfig, LatticeDomainConfig] = [
   { type: 'gyroid',   frequency: 20, thickness: 0.11, isoOffset:  0.40, colors: ['#0a1840', '#1a3870', '#3070c0', '#50a0e0', '#80d0ff'] },

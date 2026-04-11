@@ -782,7 +782,7 @@ def _create_fk_indexes():
         ("idx_tr_category_id", "transaction_recurrences", "category_id"),
         ("idx_tx_income_src", "transactions", "income_source_id"),
         ("idx_tx_recurrence", "transactions", "recurrence_id"),
-        # W2.2: Missing FK indexes identified by 13-agent audit (2026-04-01)
+        # FK indexes for frequently queried foreign key columns
         ("idx_inv_ingredient_id", "inventory_items", "ingredient_id"),
         ("idx_sli_ingredient_id", "shopping_list_items", "ingredient_id"),
         ("idx_ba_category_id", "budget_allocations", "category_id"),

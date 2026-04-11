@@ -32,7 +32,7 @@ export const shaderLabFragmentShader = /* glsl */ `
   vec3 g_lastBlendedGrad;
   float g_lastBlendedF;
   float g_lastBlendedThick;
-  float g_lastCoreD;  // QW-4: core SDF distance (>0 = aura zone, <=0 = core)
+  float g_lastCoreD;  // Core SDF distance (>0 = aura zone, <=0 = core)
   float g_lastCurvFreq; // dominant domain freq from last calcCurvature call
 
   // --- Uniforms ---
@@ -66,7 +66,7 @@ export const shaderLabFragmentShader = /* glsl */ `
   uniform float uMetallic;
   uniform float uRoughness;
   uniform float uSssIntensity;
-  uniform float uSssDensity;  // QW-1: thickness-based transmittance density (0=off)
+  uniform float uSssDensity;  // Thickness-based SSS transmittance density (0=off)
   uniform float uCurvAO;      // Layer 2: curvature AO strength (0=off, use SDF AO)
   uniform float uKColor;      // Layer 3: Gaussian curvature color shift (0=off)
   uniform float uRoughMod;    // Layer 4: normal-variation roughness modulation (0=off)
@@ -76,10 +76,10 @@ export const shaderLabFragmentShader = /* glsl */ `
   uniform float uRimShadow;   // shadow masking strength (0=none, 1=full)
   uniform float uRimAOMask;   // AO masking strength (0=none, 1=full)
   uniform float uAtmoFog;     // Layer 6: atmospheric fog strength (0=off, uses flat bgColor)
-  uniform float uThickOpacity; // QW-2: thickness-based opacity (0=off, 1=full effect)
-  uniform float uAbsorption;   // QW-3: Beer-Lambert absorption scale (0=off)
-  uniform vec3  uAbsorptionColor; // QW-3: absorption tint color
-  uniform float uAuraScale;    // QW-4: Core+Aura volumetric glow scale (0=off)
+  uniform float uThickOpacity; // Thickness-based opacity modulation (0=off, 1=full effect)
+  uniform float uAbsorption;   // Beer-Lambert absorption scale (0=off)
+  uniform vec3  uAbsorptionColor; // Beer-Lambert absorption tint color
+  uniform float uAuraScale;    // Core+Aura volumetric glow scale (0=off)
   uniform float uSpatialColor; // position-based color gradient (0=off)
   uniform int uCurvatureMode;
   uniform float uCurvatureColorStrength;
@@ -446,7 +446,7 @@ export const shaderLabFragmentShader = /* glsl */ `
     else if (safeMode == 2) shellD = d;
     else shellD = abs(d);
 
-    // QW-4: Store core distance for aura classification in compositing.
+    // Store core SDF distance for aura vs. solid classification in compositing.
     // g_lastCoreD > 0 means the hit is in the aura zone (outside core shell).
     g_lastCoreD = shellD - blendedThick;
 
@@ -1028,7 +1028,7 @@ export const shaderLabFragmentShader = /* glsl */ `
         color += albedo * (wrapSSS + scatter) * uSssIntensity * 0.6;
       }
 
-      // QW-1: Thickness-based transmittance SSS (decoupled from wrap SSS)
+      // Thickness-based transmittance SSS (decoupled from wrap SSS)
       // Thin walls glow when backlit. Uses stored blended gradient (Layer 0 infra).
       // Controlled by uSssDensity (0=off). Independent of uSssIntensity.
       if (uTranslucency > 0.001 && uSssDensity > 0.0) {
@@ -1117,7 +1117,7 @@ export const shaderLabFragmentShader = /* glsl */ `
       float freq = max(uDomainFreq[di], 0.01);
       if (safeMode == 0) {
         float maxThick = uDomainThick[di] + abs(uBreathAmp);
-        // QW-4: slightly wider jump to clear the aura detection zone
+        // Slightly wider jump to clear the aura detection zone
         if (uAuraScale > 0.0) maxThick *= (1.0 + uAuraScale * 0.4);
         jump = max(jump, 2.5 * maxThick / freq);
       } else {
@@ -1179,7 +1179,7 @@ export const shaderLabFragmentShader = /* glsl */ `
 
     vec3 accColor = vec3(0.0);
     float accAlpha = 0.0;
-    float accumThick = 0.0; // QW-3: cumulative shell thickness for Beer-Lambert
+    float accumThick = 0.0; // Cumulative shell thickness for Beer-Lambert absorption
     float tStart = max(tNear, 0.0);
 
     for (int layer = 0; layer < 5; layer++) {
@@ -1194,7 +1194,7 @@ export const shaderLabFragmentShader = /* glsl */ `
       vec3 p = ro + rd * hitT;
       vec3 n = getAnalyticalNormal(p);
 
-      // QW-4: capture hit-point state before shade() overwrites globals via AO/shadow sceneSDF calls
+      // Capture hit-point state before shade() overwrites globals via AO/shadow sceneSDF calls
       float hitCoreD = g_lastCoreD;
       float hitBlendedThick = g_lastBlendedThick;
 
@@ -1220,7 +1220,7 @@ export const shaderLabFragmentShader = /* glsl */ `
         layerCol = mix(layerCol, fogColor, fog * uAtmoFog);
       }
 
-      // QW-3: Beer-Lambert absorption — light passing through shells picks up tint color.
+      // Beer-Lambert absorption — light accumulates tint color through shell thickness.
       // uAbsorptionColor = what passes through (gold → gold tint). Absorb the complement.
       if (uAbsorption > 0.0 && accumThick > 0.0) {
         vec3 sigma = vec3(1.0) - uAbsorptionColor; // absorb what ISN'T the tint color
@@ -1280,7 +1280,7 @@ export const shaderLabFragmentShader = /* glsl */ `
         layerAlpha *= mix(1.0, thickAlpha, uThickOpacity);
       }
 
-      // QW-4: Core + Aura — hybrid dual-threshold + post-hit glow.
+      // Core + Aura — hybrid dual-threshold SDF with post-hit volumetric glow.
       // SDF is widened (40% of uAuraScale) to catch near-miss thin shells.
       // Core hits get volumetric glow. Aura hits (near-miss) get subtle translucency.
       if (uAuraScale > 0.0) {

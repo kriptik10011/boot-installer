@@ -855,7 +855,7 @@ def backfill_unified_columns(db: Session) -> None:
         mode = item.get_tracking_mode()
 
         # --- packages_backup from packages_count ---
-        # packages_count = total including open one (see GAP-2)
+        # packages_count = total including the currently open package
         # None → 0, 0 → 0, 1 → 0, 3 → 2
         pc = item.packages_count
         item.packages_backup = max(0, (pc if pc is not None and pc > 0 else 0) - 1)
