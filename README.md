@@ -25,8 +25,9 @@ Your personal command center for the week ahead. A desktop application that unif
 
 1. Download the latest installer from [Releases](../../releases)
 2. Run `Weekly-Review_x.x.x_x64-setup.exe`
-3. Follow the installation wizard
-4. Launch "Weekly Review" from your Start Menu or Desktop
+3. If Windows shows a SmartScreen warning, click "More info" then "Run anyway" (the app is not yet code-signed)
+4. Follow the installation wizard
+5. Launch "Weekly Review" from your Start Menu or Desktop
 
 ### Requirements
 

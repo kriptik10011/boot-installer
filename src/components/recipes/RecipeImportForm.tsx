@@ -132,7 +132,7 @@ export function RecipeImportForm({ onPreviewReady, onCancel }: RecipeImportFormP
           {/* AI Prompt Section */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-300">
-              Step 1: Copy this prompt to ChatGPT or Claude
+              Step 1: Copy this prompt to an AI assistant (ChatGPT, Claude, etc.)
             </label>
             <div className="relative">
               <textarea
